@@ -11,7 +11,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
 .header-left h1{font-size:20px;font-weight:700}
 .header-left p{font-size:12px;opacity:.75;margin-top:2px}
 .sync-btn{display:flex;align-items:center;gap:4px;padding:8px 12px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:8px;font-size:13px;cursor:pointer;color:#fff;font-weight:500;border:none}
-.sync-btn:active{opacity:.7}
 .tab-bar{display:flex;background:#a81919}
 .tab{flex:1;padding:12px 4px;text-align:center;font-size:14px;color:rgba(255,255,255,.6);cursor:pointer;border-bottom:3px solid transparent}
 .tab.active{color:#fff;border-bottom-color:#fff;font-weight:600}
@@ -38,8 +37,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
 .cs-name{font-size:17px;font-weight:700}
 .cs-total{font-size:16px;font-weight:700;color:#c41e1e;display:flex;align-items:center;gap:4px}
 .cs-stats{display:flex;gap:14px;flex-wrap:wrap}
-.cs-stat{font-size:13px;color:#666}
-.cs-stat b{color:#222}
+.cs-stat{font-size:13px;color:#666}.cs-stat b{color:#222}
 .result-item{background:#fff;border-radius:10px;padding:14px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:4px solid #ddd}
 .result-item.valid{border-left-color:#22a855}
 .result-item.expired{border-left-color:#c41e1e}
@@ -64,10 +62,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
 .chart-toggle{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .ct-btn{padding:7px 14px;border:1.5px solid #ddd;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#555}
 .ct-btn.active{background:#c41e1e;color:#fff;border-color:#c41e1e}
-.analytics-search-row{display:flex;gap:8px;margin-bottom:14px}
-.analytics-search-row input{flex:1;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:9px;font-size:15px;outline:none;-webkit-appearance:none}
-.analytics-search-row input:focus{border-color:#c41e1e}
-.analytics-search-row button{padding:10px 16px;background:#c41e1e;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer}
+.a-search-row{display:flex;gap:8px;margin-bottom:14px}
+.a-search-row input{flex:1;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:9px;font-size:15px;outline:none;-webkit-appearance:none}
+.a-search-row input:focus{border-color:#c41e1e}
+.a-search-row button{padding:10px 16px;background:#c41e1e;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer}
 .a-summary{background:#fff8f8;border-radius:9px;padding:12px 14px;margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap;border-left:3px solid #c41e1e;align-items:center}
 .a-sum-item{font-size:13px;color:#666;display:flex;align-items:center;gap:4px}
 .a-sum-item b{color:#c41e1e;font-size:15px;font-weight:700}
@@ -102,7 +100,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
   <div class="tab" onclick="switchTab('analytics',this)">📊 銷售分析</div>
 </div>
 <div class="main">
-
 <div id="page-search" class="page active">
   <div id="statusBar" class="status-bar">
     <div class="status-dot loading" id="statusDot"></div>
@@ -133,11 +130,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
   <div id="resultsList"><div class="loading"><div class="loading-spinner"></div>載入中...</div></div>
   <div class="pagination" id="pagination"></div>
 </div>
-
 <div id="page-analytics" class="page">
   <div class="card">
     <div class="section-title">產品銷售查詢</div>
-    <div class="analytics-search-row">
+    <div class="a-search-row">
       <input type="search" id="aSearchInput" placeholder="輸入產品名稱，例如 M18B5..." autocomplete="off">
       <button onclick="doAnalyticsSearch()">查詢</button>
     </div>
@@ -151,31 +147,63 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
     <div id="chartArea"></div>
   </div>
 </div>
-
 </div>
 <script>
 var CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSsFfDA2dL8LCxZZl4I1YgLEuGwlSU42y-uRqKkbdNVJraaOfKQoCEmFHa6G94grTE-u0SmWb-z08Ez/pub?output=csv';
 var PAGE_SIZE=25;
 var allData=[],filtered=[],currentPage=1,currentFilter='all',searchTerm='';
 var chartMode='top20',analyticsSearchTerm='';
-var amtVisible=false,csAmtVisible=false,aAmtVisible=false;
-var sbAmtReal='';
-var lastSync=null;
+var amtVisible=false,csAmtVisible=false,aAmtVisible=false,sbAmtReal='';
 
-function warrantyMonths(pd){return parseInt(pd,10)<20240101?12:24}
+// ── 日期解析（支援所有格式）──────────────────────────
+function parseD(raw){
+  if(!raw)return null;
+  var s=String(raw).trim();
 
-function parseD(s){
-  s=String(s).replace(/[^0-9]/g,'');
-  if(s.length===8)return new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8));
-  if(s.length===6)return new Date(+(s.slice(0,2)>50?'19':'20')+s.slice(0,2),+s.slice(2,4)-1,+s.slice(4,6));
+  // 1. YYYYMMDD (8位數字)
+  var d8=s.replace(/[^0-9]/g,'');
+  if(d8.length===8){
+    var y=+d8.slice(0,4),m=+d8.slice(4,6),d=+d8.slice(6,8);
+    if(y>=2000&&y<=2100&&m>=1&&m<=12&&d>=1&&d<=31)return new Date(y,m-1,d);
+  }
+
+  // 2. YYYY/MM/DD 或 YYYY-MM-DD
+  var dash=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if(dash){
+    var y=+dash[1],m=+dash[2],d=+dash[3];
+    if(y>=2000&&y<=2100)return new Date(y,m-1,d);
+  }
+
+  // 3. Excel/Sheets 序號 (5位數，43000–47000 = 2017–2028)
+  var num=parseFloat(s);
+  if(!isNaN(num)&&num>=43000&&num<=47500){
+    var base=new Date(1899,11,30);
+    var dt=new Date(base.getTime()+Math.round(num)*86400000);
+    return dt;
+  }
+
+  // 4. 6位數 YYMMDD → 補 20 前綴
+  if(d8.length===6){
+    var yy=+d8.slice(0,2),m=+d8.slice(2,4),d=+d8.slice(4,6);
+    return new Date(2000+yy,m-1,d);
+  }
+
   return null;
 }
 
-function wStatus(pd){
-  var d=parseD(pd);
+function toPdStr(dt){
+  if(!dt)return'';
+  var y=dt.getFullYear(),m=dt.getMonth()+1,d=dt.getDate();
+  return ''+y+(m<10?'0'+m:''+m)+(d<10?'0'+d:''+d);
+}
+
+function warrantyMonths(pdStr){return parseInt(pdStr,10)<20240101?12:24}
+
+function wStatus(pdStr){
+  var d=parseD(pdStr);
   if(!d)return{status:'expired',label:'日期異常',exp:null};
   var exp=new Date(d.getTime());
-  exp.setMonth(exp.getMonth()+warrantyMonths(pd));
+  exp.setMonth(exp.getMonth()+warrantyMonths(toPdStr(d)));
   var days=Math.ceil((exp.getTime()-Date.now())/86400000);
   if(days>=0)return{status:'valid',label:'保固中 剩'+days+'天',exp:exp};
   return{status:'expired',label:'已過期 '+Math.abs(days)+'天前',exp:exp};
@@ -185,66 +213,67 @@ function fmtD(d){
   if(!d)return'-';
   return d.getFullYear()+'/'+(''+(d.getMonth()+1)).padStart(2,'0')+'/'+(''+(d.getDate())).padStart(2,'0');
 }
-function fmtPD(pd){var d=parseD(pd);return d?fmtD(d):pd}
 function parseAmt(s){var n=parseFloat(String(s).replace(/[^0-9.]/g,''));return isNaN(n)?0:n}
 
+// ── CSV 解析 ──────────────────────────────────────────
 function parseCSV(text){
   var lines=text.split('\n');
   var rows=[];
   for(var i=1;i<lines.length;i++){
-    var line=lines[i].trim();
-    if(!line)continue;
-    var cols=[];var cur='';var inQ=false;
+    var line=lines[i].trim();if(!line)continue;
+    var cols=[],cur='',inQ=false;
     for(var j=0;j<line.length;j++){
       var c=line[j];
-      if(c==='"'){inQ=!inQ;}
+      if(c==='"')inQ=!inQ;
       else if(c===','&&!inQ){cols.push(cur.trim());cur='';}
-      else{cur+=c;}
+      else cur+=c;
     }
     cols.push(cur.trim());
-    var pd=String(cols[0]||'').replace(/[^0-9]/g,'');
-    if(pd.length===6)pd='2'+pd;
-    if(!pd||pd.length<6)continue;
+
+    var rawPd=cols[0]||'';
+    var dt=parseD(rawPd);
+    if(!dt)continue; // 跳過無效日期
+    var pdStr=toPdStr(dt);
+
     var product=String(cols[3]||'').trim();
     var pname=product;
     if(pname.indexOf('|')>=0)pname=pname.split('|')[0].trim();
     pname=pname.replace(/\s+[A-Z0-9]{6,}.*$/,'').trim().toUpperCase();
+
     rows.push({
-      pd:pd,
+      pd:pdStr,
+      dt:dt,
       name:String(cols[1]||'').trim(),
-      phone:String(cols[2]||'').replace(/\.0$/,'').trim(),
+      phone:String(cols[2]||'').replace(/\.0$/,'').replace(/nan/i,'').trim(),
       product:product,
-      note:String(cols[4]||'').replace(/\.0$/,'').trim(),
+      note:String(cols[4]||'').replace(/\.0$/,'').replace(/nan/i,'').trim(),
       pname:pname||'未知'
     });
   }
   return rows;
 }
 
+// ── 狀態列 ───────────────────────────────────────────
 function setStatus(type,msg){
-  var dot=document.getElementById('statusDot');
-  var txt=document.getElementById('statusText');
-  dot.className='status-dot'+(type==='loading'?' loading':type==='error'?' error':'');
-  txt.textContent=msg;
+  document.getElementById('statusDot').className='status-dot'+(type==='loading'?' loading':type==='error'?' error':'');
+  document.getElementById('statusText').textContent=msg;
 }
 
+// ── 載入資料 ──────────────────────────────────────────
 function loadData(){
   setStatus('loading','正在同步 Google Sheets 資料...');
-  var url=CSV_URL+'&t='+Date.now();
-  fetch(url)
-    .then(function(r){
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      return r.text();
-    })
+  document.getElementById('resultsList').innerHTML='<div class="loading"><div class="loading-spinner"></div>載入中...</div>';
+  fetch(CSV_URL+'&t='+Date.now())
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
     .then(function(text){
       allData=parseCSV(text);
-      lastSync=new Date();
-      var ts=lastSync.getHours()+':'+(''+(lastSync.getMinutes())).padStart(2,'0');
-      setStatus('ok','已同步 '+allData.length.toLocaleString()+' 筆｜最後更新 '+ts);
+      var ts=new Date();
+      var hm=ts.getHours()+':'+(''+(ts.getMinutes())).padStart(2,'0');
+      setStatus('ok','已同步 '+allData.length.toLocaleString()+' 筆｜最後更新 '+hm);
       applyFilters();
     })
-    .catch(function(err){
-      setStatus('error','載入失敗，請檢查網路或點右上角重新同步');
+    .catch(function(){
+      setStatus('error','載入失敗，請點右上角 🔄 重試');
       document.getElementById('resultsList').innerHTML='<div class="empty"><div class="empty-icon">⚠️</div><p>無法載入資料</p></div>';
     });
 }
@@ -259,15 +288,8 @@ function switchTab(tab,btn){
 
 function applyFilters(){
   var base=allData;
-  if(searchTerm){
-    var t=searchTerm.toLowerCase();
-    base=base.filter(function(r){
-      return r.name.toLowerCase().indexOf(t)>=0||r.phone.indexOf(t)>=0||r.product.toLowerCase().indexOf(t)>=0;
-    });
-  }
-  if(currentFilter!=='all'){
-    base=base.filter(function(r){return wStatus(r.pd).status===currentFilter});
-  }
+  if(searchTerm){var t=searchTerm.toLowerCase();base=base.filter(function(r){return r.name.toLowerCase().indexOf(t)>=0||r.phone.indexOf(t)>=0||r.product.toLowerCase().indexOf(t)>=0});}
+  if(currentFilter!=='all')base=base.filter(function(r){return wStatus(r.pd).status===currentFilter});
   filtered=base;currentPage=1;
   renderSummaryBar();renderCustomerSummary();renderResults();
 }
@@ -292,22 +314,18 @@ function toggleAmt(){
   el.className='sb-num'+(amtVisible?'':' masked');
   document.getElementById('eyeAmt').textContent=amtVisible?'🙈':'👁';
 }
-
 function toggleCsAmt(){
   csAmtVisible=!csAmtVisible;
-  var el=document.getElementById('csAmtSpan');
-  var eye=document.getElementById('eyeCs');
+  var el=document.getElementById('csAmtSpan'),eye=document.getElementById('eyeCs');
   if(!el)return;
   var v=parseInt(el.getAttribute('data-val'),10)||0;
   el.textContent=csAmtVisible?'NT$'+v.toLocaleString():'****';
   el.className=csAmtVisible?'':'masked';
   eye.textContent=csAmtVisible?'🙈':'👁';
 }
-
 function toggleAAmt(){
   aAmtVisible=!aAmtVisible;
-  var el=document.getElementById('aAmtSpan');
-  var eye=document.getElementById('eyeA');
+  var el=document.getElementById('aAmtSpan'),eye=document.getElementById('eyeA');
   if(!el)return;
   var v=parseInt(el.getAttribute('data-val'),10)||0;
   el.textContent=aAmtVisible?'NT$'+v.toLocaleString():'****';
@@ -324,12 +342,9 @@ function renderCustomerSummary(){
   csAmtVisible=false;
   var total=byC.reduce(function(s,r){return s+parseAmt(r.note)},0);
   var valid=byC.filter(function(r){return wStatus(r.pd).status==='valid'}).length;
-  cs.innerHTML='<div class="cs-card">'
-    +'<div class="cs-header">'
-    +'<div class="cs-name">'+byC[0].name+'</div>'
+  cs.innerHTML='<div class="cs-card"><div class="cs-header"><div class="cs-name">'+byC[0].name+'</div>'
     +(total>0?'<div class="cs-total"><span id="csAmtSpan" data-val="'+total+'" class="masked">****</span><button class="eye-btn" id="eyeCs" onclick="toggleCsAmt()">👁</button></div>':'')
-    +'</div>'
-    +'<div class="cs-stats">'
+    +'</div><div class="cs-stats">'
     +(byC[0].phone?'<div class="cs-stat">📞 <b>'+byC[0].phone+'</b></div>':'')
     +'<div class="cs-stat">📦 共 <b>'+byC.length+' 筆</b>購買紀錄</div>'
     +'<div class="cs-stat">✅ 保固中 <b>'+valid+' 筆</b></div>'
@@ -339,29 +354,23 @@ function renderCustomerSummary(){
 
 function renderResults(){
   var total=filtered.length;
-  var start=(currentPage-1)*PAGE_SIZE;
-  var page=filtered.slice(start,start+PAGE_SIZE);
+  var page=filtered.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
   var list=document.getElementById('resultsList');
-  if(!total){
-    list.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><p>找不到符合的紀錄</p></div>';
-    document.getElementById('pagination').innerHTML='';return;
-  }
+  if(!total){list.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><p>找不到符合的紀錄</p></div>';document.getElementById('pagination').innerHTML='';return}
   var html='';
   for(var i=0;i<page.length;i++){
-    var r=page[i];var ws=wStatus(r.pd);var months=warrantyMonths(r.pd);
-    html+='<div class="result-item '+ws.status+'">'
-      +'<div class="ri-top"><div class="ri-name">'+(r.name||'—')+'</div>'
+    var r=page[i],ws=wStatus(r.pd),months=warrantyMonths(r.pd);
+    html+='<div class="result-item '+ws.status+'"><div class="ri-top"><div class="ri-name">'+(r.name||'—')+'</div>'
       +'<span class="badge '+ws.status+'">'+(ws.status==='valid'?'✅':'❌')+' '+ws.label+'</span></div>'
       +'<div class="ri-grid">'
-      +'<div class="ri-field">📅 購買 <b>'+fmtPD(r.pd)+'</b></div>'
+      +'<div class="ri-field">📅 購買 <b>'+fmtD(r.dt)+'</b></div>'
       +'<div class="ri-field">🔒 到期 <b>'+(ws.exp?fmtD(ws.exp):'-')+'</b></div>'
       +(r.phone?'<div class="ri-field">📞 <b>'+r.phone+'</b></div>':'')
       +'<div class="ri-field">📋 保固 <b>'+months+'個月</b></div>'
       +(parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>':'')
       +'</div><div class="ri-product">'+r.product+'</div></div>';
   }
-  list.innerHTML=html;
-  renderPagination(total);
+  list.innerHTML=html;renderPagination(total);
 }
 
 function renderPagination(total){
@@ -380,98 +389,53 @@ function renderPagination(total){
 function goPage(n){currentPage=n;renderResults();window.scrollTo(0,0)}
 function doSearch(){searchTerm=document.getElementById('searchInput').value.trim();applyFilters()}
 function clearSearch(){document.getElementById('searchInput').value='';searchTerm='';applyFilters()}
-function setFilter(f,btn){
-  currentFilter=f;
-  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});
-  btn.classList.add('active');applyFilters();
-}
+function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');applyFilters()}
 document.getElementById('searchInput').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
-
-function doAnalyticsSearch(){
-  analyticsSearchTerm=document.getElementById('aSearchInput').value.trim().toUpperCase();
-  renderChart();
-}
+function doAnalyticsSearch(){analyticsSearchTerm=document.getElementById('aSearchInput').value.trim().toUpperCase();renderChart()}
 document.getElementById('aSearchInput').addEventListener('keydown',function(e){if(e.key==='Enter')doAnalyticsSearch()});
 function setChartMode(m,btn){chartMode=m;document.querySelectorAll('.ct-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');renderChart()}
 
 function renderChart(){
-  var area=document.getElementById('chartArea');
-  var titleEl=document.getElementById('chartTitle');
-  var aSummary=document.getElementById('aSummary');
+  var area=document.getElementById('chartArea'),titleEl=document.getElementById('chartTitle'),aSummary=document.getElementById('aSummary');
   if(!allData.length){area.innerHTML='<div class="empty"><p>資料載入中...</p></div>';return}
-
   if(chartMode==='trend'){
-    var base=analyticsSearchTerm
-      ?allData.filter(function(r){return r.pname.indexOf(analyticsSearchTerm)>=0||r.product.toUpperCase().indexOf(analyticsSearchTerm)>=0})
-      :allData;
+    var base2=analyticsSearchTerm?allData.filter(function(r){return r.pname.indexOf(analyticsSearchTerm)>=0||r.product.toUpperCase().indexOf(analyticsSearchTerm)>=0}):allData;
     titleEl.textContent=analyticsSearchTerm?'「'+analyticsSearchTerm+'」近12個月趨勢':'全部產品 近12個月趨勢';
     var now=new Date(),months=[],counts=[];
-    for(var i=11;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:d.getFullYear()*100+(d.getMonth()+1),label:(d.getMonth()+1)+'月'})}
-    for(var mi=0;mi<months.length;mi++){
-      var mk=months[mi].key;
-      counts.push(base.filter(function(r){var dd=parseD(r.pd);return dd&&dd.getFullYear()*100+(dd.getMonth()+1)===mk}).length);
-    }
+    for(var i=11;i>=0;i--){var dd=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:dd.getFullYear()*100+(dd.getMonth()+1),label:(dd.getMonth()+1)+'月'})}
+    for(var mi=0;mi<months.length;mi++){var mk=months[mi].key;counts.push(base2.filter(function(r){return r.dt&&r.dt.getFullYear()*100+(r.dt.getMonth()+1)===mk}).length)}
     var maxC=Math.max.apply(null,counts.concat([1]));
     var tw='<div class="trend-wrap">';
     for(var ti=0;ti<counts.length;ti++)tw+='<div class="trend-b" style="height:'+Math.max(3,Math.round(counts[ti]/maxC*74))+'px"></div>';
     tw+='</div><div class="trend-labels">';
     for(var li=0;li<months.length;li++)tw+='<div class="trend-lbl">'+months[li].label+'</div>';
     tw+='</div>';
-    for(var bi=0;bi<counts.length;bi++){
-      var pct=Math.max(4,Math.round(counts[bi]/maxC*100));
-      tw+='<div class="bar-row"><div class="bar-label">'+months[bi].label+'</div>'
-        +'<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%">'+(counts[bi]>=5?'<span class="bar-cnt">'+counts[bi]+'</span>':'')+'</div></div>'
-        +(counts[bi]<5?'<span class="bar-cnt-out">'+counts[bi]+'</span>':'')+'</div>';
-    }
+    for(var bi=0;bi<counts.length;bi++){var pct=Math.max(4,Math.round(counts[bi]/maxC*100));tw+='<div class="bar-row"><div class="bar-label">'+months[bi].label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%">'+(counts[bi]>=5?'<span class="bar-cnt">'+counts[bi]+'</span>':'')+'</div></div>'+(counts[bi]<5?'<span class="bar-cnt-out">'+counts[bi]+'</span>':'')+'</div>'}
     area.innerHTML=tw;return;
   }
-
   var N=chartMode==='top10'?10:20;
   if(analyticsSearchTerm){
     aAmtVisible=false;
     var matched=allData.filter(function(r){return r.pname.indexOf(analyticsSearchTerm)>=0||r.product.toUpperCase().indexOf(analyticsSearchTerm)>=0});
-    if(!matched.length){
-      aSummary.innerHTML='<div class="a-summary"><div class="a-sum-item">找不到「'+analyticsSearchTerm+'」的資料</div></div>';
-      area.innerHTML='';titleEl.textContent='';return;
-    }
-    var amt=matched.reduce(function(s,r){return s+parseAmt(r.note)},0);
-    var valid=matched.filter(function(r){return wStatus(r.pd).status==='valid'}).length;
+    if(!matched.length){aSummary.innerHTML='<div class="a-summary"><div class="a-sum-item">找不到「'+analyticsSearchTerm+'」的資料</div></div>';area.innerHTML='';titleEl.textContent='';return}
+    var amt2=matched.reduce(function(s,r){return s+parseAmt(r.note)},0);
+    var valid2=matched.filter(function(r){return wStatus(r.pd).status==='valid'}).length;
     var map={};matched.forEach(function(r){map[r.pname]=(map[r.pname]||0)+1});
     var sorted=Object.entries(map).sort(function(a,b){return b[1]-a[1]});
-    aSummary.innerHTML='<div class="a-summary">'
-      +'<div class="a-sum-item">🔍 <b>'+analyticsSearchTerm+'</b></div>'
-      +'<div class="a-sum-item">📦 共 <b>'+matched.length+'</b> 筆</div>'
-      +(amt>0?'<div class="a-sum-item">💰 <span id="aAmtSpan" data-val="'+amt+'" class="masked">****</span><button class="eye-btn" id="eyeA" onclick="toggleAAmt()">👁</button></div>':'')
-      +'<div class="a-sum-item">✅ 保固中 <b>'+valid+'</b> 筆</div>'
-      +'</div>';
+    aSummary.innerHTML='<div class="a-summary"><div class="a-sum-item">🔍 <b>'+analyticsSearchTerm+'</b></div><div class="a-sum-item">📦 共 <b>'+matched.length+'</b> 筆</div>'+(amt2>0?'<div class="a-sum-item">💰 <span id="aAmtSpan" data-val="'+amt2+'" class="masked">****</span><button class="eye-btn" id="eyeA" onclick="toggleAAmt()">👁</button></div>':'')+'<div class="a-sum-item">✅ 保固中 <b>'+valid2+'</b> 筆</div></div>';
     titleEl.textContent='「'+analyticsSearchTerm+'」相關產品';
-    var maxS=sorted[0][1];var sh='';
-    for(var si=0;si<sorted.length;si++){
-      var nm=sorted[si][0],cnt=sorted[si][1];
-      var p2=Math.round(cnt/maxS*100);
-      var isHl=nm===analyticsSearchTerm||nm.indexOf(analyticsSearchTerm)>=0;
-      sh+='<div class="bar-row"><div class="bar-label" title="'+nm+'">'+nm+'</div>'
-        +'<div class="bar-track"><div class="bar-fill'+(isHl?' hl':'')+'" style="width:'+Math.max(6,p2)+'%">'+(p2>=20?'<span class="bar-cnt">'+cnt+'</span>':'')+'</div></div>'
-        +(p2<20?'<span class="bar-cnt-out">'+cnt+'</span>':'')+'</div>';
-    }
+    var maxS=sorted[0][1],sh='';
+    for(var si=0;si<sorted.length;si++){var nm=sorted[si][0],cnt=sorted[si][1],p2=Math.round(cnt/maxS*100),isHl=nm.indexOf(analyticsSearchTerm)>=0;sh+='<div class="bar-row"><div class="bar-label" title="'+nm+'">'+nm+'</div><div class="bar-track"><div class="bar-fill'+(isHl?' hl':'')+'" style="width:'+Math.max(6,p2)+'%">'+(p2>=20?'<span class="bar-cnt">'+cnt+'</span>':'')+'</div></div>'+(p2<20?'<span class="bar-cnt-out">'+cnt+'</span>':'')+'</div>'}
     area.innerHTML=sh;
   } else {
-    aSummary.innerHTML='';
-    titleEl.textContent='全部產品銷售 Top '+N;
+    aSummary.innerHTML='';titleEl.textContent='全部產品銷售 Top '+N;
     var map2={};allData.forEach(function(r){map2[r.pname]=(map2[r.pname]||0)+1});
     var sorted2=Object.entries(map2).sort(function(a,b){return b[1]-a[1]}).slice(0,N);
-    var max2=sorted2[0]?sorted2[0][1]:1;var sh2='';
-    for(var si2=0;si2<sorted2.length;si2++){
-      var n2=sorted2[si2][0],c2=sorted2[si2][1];
-      var p3=Math.round(c2/max2*100);
-      sh2+='<div class="bar-row"><div class="bar-label" title="'+n2+'">'+n2+'</div>'
-        +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.max(6,p3)+'%">'+(p3>=20?'<span class="bar-cnt">'+c2+'</span>':'')+'</div></div>'
-        +(p3<20?'<span class="bar-cnt-out">'+c2+'</span>':'')+'</div>';
-    }
+    var max2=sorted2[0]?sorted2[0][1]:1,sh2='';
+    for(var si2=0;si2<sorted2.length;si2++){var n2=sorted2[si2][0],c2=sorted2[si2][1],p3=Math.round(c2/max2*100);sh2+='<div class="bar-row"><div class="bar-label" title="'+n2+'">'+n2+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(6,p3)+'%">'+(p3>=20?'<span class="bar-cnt">'+c2+'</span>':'')+'</div></div>'+(p3<20?'<span class="bar-cnt-out">'+c2+'</span>':'')+'</div>'}
     area.innerHTML=sh2;
   }
 }
-
 loadData();
 </script>
 </body>
