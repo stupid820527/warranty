@@ -288,7 +288,7 @@ function switchTab(tab,btn){
 
 function applyFilters(){
   var base=allData;
-  if(searchTerm){var t=searchTerm.toLowerCase();base=base.filter(function(r){return r.name.toLowerCase().indexOf(t)>=0||r.phone.indexOf(t)>=0||r.product.toLowerCase().indexOf(t)>=0});}
+  if(searchTerm){var t=searchTerm.toLowerCase().replace(/\s+/g,'');base=base.filter(function(r){return r.name.toLowerCase().replace(/\s+/g,'').indexOf(t)>=0||r.phone.replace(/\s+/g,'').indexOf(t)>=0||r.product.toLowerCase().replace(/\s+/g,'').indexOf(t)>=0||r.pname.toLowerCase().replace(/\s+/g,'').indexOf(t)>=0});}
   if(currentFilter!=='all')base=base.filter(function(r){return wStatus(r.pd).status===currentFilter});
   filtered=base;currentPage=1;
   renderSummaryBar();renderCustomerSummary();renderResults();
@@ -336,8 +336,8 @@ function toggleAAmt(){
 function renderCustomerSummary(){
   var cs=document.getElementById('customerSummary');
   if(!searchTerm){cs.innerHTML='';return}
-  var t=searchTerm.toLowerCase();
-  var byC=filtered.filter(function(r){return r.name.toLowerCase().indexOf(t)>=0||r.phone.indexOf(t)>=0});
+  var t=searchTerm.toLowerCase().replace(/\s+/g,'');
+  var byC=filtered.filter(function(r){return r.name.toLowerCase().replace(/\s+/g,'').indexOf(t)>=0||r.phone.replace(/\s+/g,'').indexOf(t)>=0});
   if(byC.length<2){cs.innerHTML='';return}
   csAmtVisible=false;
   var total=byC.reduce(function(s,r){return s+parseAmt(r.note)},0);
@@ -391,7 +391,7 @@ function doSearch(){searchTerm=document.getElementById('searchInput').value.trim
 function clearSearch(){document.getElementById('searchInput').value='';searchTerm='';applyFilters()}
 function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');applyFilters()}
 document.getElementById('searchInput').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
-function doAnalyticsSearch(){analyticsSearchTerm=document.getElementById('aSearchInput').value.trim().toUpperCase();renderChart()}
+function doAnalyticsSearch(){analyticsSearchTerm=document.getElementById('aSearchInput').value.trim().toUpperCase().replace(/\s+/g,'');renderChart()}
 document.getElementById('aSearchInput').addEventListener('keydown',function(e){if(e.key==='Enter')doAnalyticsSearch()});
 function setChartMode(m,btn){chartMode=m;document.querySelectorAll('.ct-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');renderChart()}
 
