@@ -235,18 +235,39 @@ function parseCSV(text){
     if(!dt)continue; // 跳過無效日期
     var pdStr=toPdStr(dt);
 
-    var product=String(cols[3]||'').trim();
-    var pname=product;
-    if(pname.indexOf('|')>=0)pname=pname.split('|')[0].trim();
-    pname=pname.replace(/\s+[A-Z0-9]{6,}.*$/,'').trim().toUpperCase();
+    // 新格式(2026/09後)：D=產品名稱, E=機身序號, F=備註
+    // 舊格式：D=產品名稱序號合併, E=備註
+    var colD=String(cols[3]||'').trim();
+    var colE=String(cols[4]||'').trim();
+    var colF=String(cols[5]||'').trim();
+    var eIsSerial=colE!==''&&colE.toLowerCase()!=='nan'&&colF!==''&&colF.toLowerCase()!=='nan';
+    var eIsSerialOnly=colE!==''&&colE.toLowerCase()!=='nan'&&(colF===''||colF.toLowerCase()==='nan')&&isNaN(parseFloat(colE));
+    var isNewFormat=eIsSerial||eIsSerialOnly;
+
+    var pname,serial,product,note;
+    if(isNewFormat){
+      pname=colD.toUpperCase();
+      serial=colE;
+      product=colD+(colE?' | '+colE:'');
+      note=(colF||colE.match(/^\d/)&&colF||'').replace(/\.0$/,'').replace(/^nan$/i,'');
+      if(colF&&colF.toLowerCase()!=='nan')note=colF.replace(/\.0$/,'');
+    } else {
+      product=colD;
+      pname=product;
+      if(pname.indexOf('|')>=0)pname=pname.split('|')[0].trim();
+      pname=pname.replace(/\s+[A-Z0-9]{6,}.*$/,'').trim().toUpperCase();
+      serial=product.indexOf('|')>=0?product.split('|').slice(1).join('|').trim():'';
+      note=colE.replace(/\.0$/,'').replace(/^nan$/i,'');
+    }
 
     rows.push({
       pd:pdStr,
       dt:dt,
       name:String(cols[1]||'').trim(),
-      phone:String(cols[2]||'').replace(/\.0$/,'').replace(/nan/i,'').trim(),
+      phone:String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim(),
       product:product,
-      note:String(cols[4]||'').replace(/\.0$/,'').replace(/nan/i,'').trim(),
+      serial:serial,
+      note:note,
       pname:pname||'未知'
     });
   }
@@ -368,7 +389,8 @@ function renderResults(){
       +(r.phone?'<div class="ri-field">📞 <b>'+r.phone+'</b></div>':'')
       +'<div class="ri-field">📋 保固 <b>'+months+'個月</b></div>'
       +(parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>':'')
-      +'</div><div class="ri-product">'+r.product+'</div></div>';
+      +(r.serial?'<div class="ri-product"><span style="color:#888;font-size:11px">🏷 產品</span> <b style="color:#555">'+r.pname+'</b><br><span style="color:#888;font-size:11px">🔢 序號</span> '+r.serial+'</div>':'<div class="ri-product">'+r.product+'</div>')
+      +'</div>';
   }
   list.innerHTML=html;renderPagination(total);
 }
