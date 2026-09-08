@@ -265,7 +265,8 @@ function parseCSV(text){
       product:product,
       serial:serial,
       note:note,
-      pname:pname||'未知'
+      pname:pname||'未知',
+      newFmt:isNewFormat
     });
   }
   return rows;
@@ -386,7 +387,7 @@ function renderResults(){
       +(r.phone?'<div class="ri-field">📞 <b>'+r.phone+'</b></div>':'')
       +'<div class="ri-field">📋 保固 <b>'+months+'個月</b></div>'
       +(parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>':'')
-      +(r.serial?'<div class="ri-product"><span style="color:#888;font-size:11px">🏷 產品</span> <b style="color:#555">'+r.pname+'</b><br><span style="color:#888;font-size:11px">🔢 序號</span> '+r.serial+'</div>':'<div class="ri-product">'+r.product+'</div>')
+      +(r.newFmt?'<div class="ri-product"><span style="color:#888;font-size:11px">🏷 產品</span> <b style="color:#555">'+r.pname+'</b><br><span style="color:#888;font-size:11px">🔢 序號</span> '+r.serial+'</div>':'<div class="ri-product">'+r.product+'</div>')
       +'</div>';
   }
   list.innerHTML=html;renderPagination(total);
