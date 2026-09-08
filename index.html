@@ -235,22 +235,19 @@ function parseCSV(text){
     if(!dt)continue; // 跳過無效日期
     var pdStr=toPdStr(dt);
 
-    // 新格式(2026/09後)：D=產品名稱, E=機身序號, F=備註
-    // 舊格式：D=產品名稱序號合併, E=備註
+    // 2026/09/01 後為新格式：D=產品名稱, E=機身序號, F=備註
+    // 之前為舊格式：D=產品名稱序號合併, E=備註
     var colD=String(cols[3]||'').trim();
     var colE=String(cols[4]||'').trim();
     var colF=String(cols[5]||'').trim();
-    var eIsSerial=colE!==''&&colE.toLowerCase()!=='nan'&&colF!==''&&colF.toLowerCase()!=='nan';
-    var eIsSerialOnly=colE!==''&&colE.toLowerCase()!=='nan'&&(colF===''||colF.toLowerCase()==='nan')&&isNaN(parseFloat(colE));
-    var isNewFormat=eIsSerial||eIsSerialOnly;
+    var isNewFormat=parseInt(pdStr,10)>=20260901;
 
     var pname,serial,product,note;
     if(isNewFormat){
       pname=colD.toUpperCase();
-      serial=colE;
-      product=colD+(colE?' | '+colE:'');
-      note=(colF||colE.match(/^\d/)&&colF||'').replace(/\.0$/,'').replace(/^nan$/i,'');
-      if(colF&&colF.toLowerCase()!=='nan')note=colF.replace(/\.0$/,'');
+      serial=colE.replace(/^nan$/i,'');
+      product=colD+(serial?' | '+serial:'');
+      note=colF.replace(/\.0$/,'').replace(/^nan$/i,'');
     } else {
       product=colD;
       pname=product;
