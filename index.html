@@ -184,8 +184,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
     <div id="aSummary"></div>
     <div class="chart-toggle">
       <button class="ct-btn active" onclick="setChartMode('top20',this)">Top 20</button>
-      <button class="ct-btn" onclick="setChartMode('top10',this)">Top 10</button>
-      <button class="ct-btn" onclick="setChartMode('trend',this)">月趨勢</button>
+      <button class="ct-btn" onclick="setChartMode('m12',this)">M12系列</button>
+      <button class="ct-btn" onclick="setChartMode('m18',this)">M18系列</button>
+      <button class="ct-btn" onclick="setChartMode('battery',this)">充電器/電池</button>
     </div>
     <div class="section-title" id="chartTitle">全部產品銷售 Top 20</div>
     <div id="chartArea"></div>
@@ -472,22 +473,8 @@ function setChartMode(m,btn){chartMode=m;document.querySelectorAll('.ct-btn').fo
 function renderChart(){
   var area=document.getElementById('chartArea'),titleEl=document.getElementById('chartTitle'),aSummary=document.getElementById('aSummary');
   if(!allData.length){area.innerHTML='<div class="empty"><p>資料載入中...</p></div>';return}
-  if(chartMode==='trend'){
-    var chartBase=getRangeData();var base2=analyticsSearchTerm?chartBase.filter(function(r){return r.pname.replace(/\s+/g,'').indexOf(analyticsSearchTerm)>=0||r.product.toUpperCase().replace(/\s+/g,'').indexOf(analyticsSearchTerm)>=0}):chartBase;
-    titleEl.textContent=analyticsSearchTerm?'「'+analyticsSearchTerm+'」近12個月趨勢':'全部產品 近12個月趨勢';
-    var now=new Date(),months=[],counts=[];
-    for(var i=11;i>=0;i--){var dd=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:dd.getFullYear()*100+(dd.getMonth()+1),label:(dd.getMonth()+1)+'月'})}
-    for(var mi=0;mi<months.length;mi++){var mk=months[mi].key;counts.push(base2.filter(function(r){return r.dt&&r.dt.getFullYear()*100+(r.dt.getMonth()+1)===mk}).length)}
-    var maxC=Math.max.apply(null,counts.concat([1]));
-    var tw='<div class="trend-wrap">';
-    for(var ti=0;ti<counts.length;ti++)tw+='<div class="trend-b" style="height:'+Math.max(3,Math.round(counts[ti]/maxC*74))+'px"></div>';
-    tw+='</div><div class="trend-labels">';
-    for(var li=0;li<months.length;li++)tw+='<div class="trend-lbl">'+months[li].label+'</div>';
-    tw+='</div>';
-    for(var bi=0;bi<counts.length;bi++){var pct=Math.max(4,Math.round(counts[bi]/maxC*100));tw+='<div class="bar-row"><div class="bar-label">'+months[bi].label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%">'+(counts[bi]>=5?'<span class="bar-cnt">'+counts[bi]+'</span>':'')+'</div></div>'+(counts[bi]<5?'<span class="bar-cnt-out">'+counts[bi]+'</span>':'')+'</div>'}
-    area.innerHTML=tw;return;
-  }
-  var N=chartMode==='top10'?10:20;
+
+  // 判斷是否有搜尋詞
   if(analyticsSearchTerm){
     aAmtVisible=false;
     var matched=allData.filter(function(r){return r.pname.replace(/\s+/g,'').indexOf(analyticsSearchTerm)>=0||r.product.toUpperCase().replace(/\s+/g,'').indexOf(analyticsSearchTerm)>=0});
@@ -501,14 +488,53 @@ function renderChart(){
     var maxS=sorted[0][1],sh='';
     for(var si=0;si<sorted.length;si++){var nm=sorted[si][0],cnt=sorted[si][1],p2=Math.round(cnt/maxS*100),isHl=nm.replace(/\s+/g,'').indexOf(analyticsSearchTerm)>=0;sh+='<div class="bar-row"><div class="bar-label" title="'+nm+'">'+nm+'</div><div class="bar-track"><div class="bar-fill'+(isHl?' hl':'')+'" style="width:'+Math.max(6,p2)+'%">'+(p2>=20?'<span class="bar-cnt">'+cnt+'</span>':'')+'</div></div>'+(p2<20?'<span class="bar-cnt-out">'+cnt+'</span>':'')+'</div>'}
     area.innerHTML=sh;
-  } else {
-    aSummary.innerHTML='';titleEl.textContent='全部產品銷售 Top '+N;
-    var map2={};getRangeData().forEach(function(r){map2[r.pname]=(map2[r.pname]||0)+1});
-    var sorted2=Object.entries(map2).sort(function(a,b){return b[1]-a[1]}).slice(0,N);
-    var max2=sorted2[0]?sorted2[0][1]:1,sh2='';
-    for(var si2=0;si2<sorted2.length;si2++){var n2=sorted2[si2][0],c2=sorted2[si2][1],p3=Math.round(c2/max2*100);sh2+='<div class="bar-row"><div class="bar-label" title="'+n2+'">'+n2+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(6,p3)+'%">'+(p3>=20?'<span class="bar-cnt">'+c2+'</span>':'')+'</div></div>'+(p3<20?'<span class="bar-cnt-out">'+c2+'</span>':'')+'</div>'}
-    area.innerHTML=sh2;
+    return;
   }
+
+  // 無搜尋詞時依 chartMode 顯示
+  aSummary.innerHTML='';
+  var base=getRangeData();
+
+  // 分類過濾函數
+  function isBattery(pname){
+    var p=pname.toUpperCase().replace(/\s+/g,'');
+    // 充電器：FC, MC, C (含M12-18FC, M12-18C)
+    if(/M\d+(FC|MC|C)(-\d+)?$/.test(p)||/M12-?18(FC|C)/.test(p))return true;
+    // 電池：HB, B2, B4, B5, B6, B8, B12 等
+    if(/M\d+HB|M\d+B\d+/.test(p))return true;
+    // L4 電池
+    if(/^L4B/.test(p))return true;
+    return false;
+  }
+  function isM12(pname){
+    if(isBattery(pname))return false;
+    return /^M12/.test(pname.toUpperCase().replace(/\s+/g,''));
+  }
+  function isM18(pname){
+    if(isBattery(pname))return false;
+    return /^M18/.test(pname.toUpperCase().replace(/\s+/g,''));
+  }
+
+  var subset=base, label='全部產品銷售 Top 20', N=20;
+
+  if(chartMode==='m12'){
+    subset=base.filter(function(r){return isM12(r.pname)});
+    label='M12 系列 Top 20';
+  } else if(chartMode==='m18'){
+    subset=base.filter(function(r){return isM18(r.pname)});
+    label='M18 系列 Top 20';
+  } else if(chartMode==='battery'){
+    subset=base.filter(function(r){return isBattery(r.pname)});
+    label='充電器 / 電池 Top 20';
+  }
+
+  titleEl.textContent=label;
+  var map2={};subset.forEach(function(r){map2[r.pname]=(map2[r.pname]||0)+1});
+  var sorted2=Object.entries(map2).sort(function(a,b){return b[1]-a[1]}).slice(0,N);
+  if(!sorted2.length){area.innerHTML='<div class="empty"><p>此分類無資料</p></div>';return}
+  var max2=sorted2[0][1],sh2='';
+  for(var si2=0;si2<sorted2.length;si2++){var n2=sorted2[si2][0],c2=sorted2[si2][1],p3=Math.round(c2/max2*100);sh2+='<div class="bar-row"><div class="bar-label" title="'+n2+'">'+n2+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(6,p3)+'%">'+(p3>=20?'<span class="bar-cnt">'+c2+'</span>':'')+'</div></div>'+(p3<20?'<span class="bar-cnt-out">'+c2+'</span>':'')+'</div>'}
+  area.innerHTML=sh2;
 }
 
 // ── 時間範圍篩選 ────────────────────────────────────────
