@@ -272,20 +272,28 @@ function parseCSV(text){
     } else {
       // 舊格式：D=產品名稱+序號合併, E=備註
       product=colD;
-      // 移除開頭多餘的 |
-      var tmp=colD.replace(/^\|+\s*/,'').trim();
-      // 有 | 取第一段
-      if(tmp.indexOf('|')>=0)tmp=tmp.split('|')[0].trim();
-      // 逐段掃描，遇到序號段就停止
-      var pp=tmp.split(/\s+/),rr=[];
-      for(var pi=0;pi<pp.length;pi++){
-        var pt=pp[pi];
-        if(/^\d{6,}$/.test(pt))break;                        // 純數字6位以上
-        if(/^[A-Z]{1,3}\d{5,}/.test(pt)&&pt.length>=7)break; // 字母+長數字
-        if(pt.length>=10&&/^[A-Z0-9]+$/.test(pt)&&/\d{6,}/.test(pt))break;
-        rr.push(pt);
+      // 智慧型產品名稱提取（不依賴型號清單）
+      var tmp2=colD.replace(/^\|+\s*/,'').trim();
+      if(tmp2.indexOf('|')>=0)tmp2=tmp2.split('|')[0].trim();
+      var tu=tmp2.toUpperCase().replace(/\s{2,}/g,' ');
+      var pp2=tu.split(/\s+/),rr2=[];
+      for(var pi=0;pi<pp2.length;pi++){
+        var pt2=pp2[pi];
+        // 1. 純數字6位以上（日期/序號）→ 停止
+        if(/^\d{6,}$/.test(pt2))break;
+        // 2. Milwaukee 序號：1字母+5位以上數字 (A00049, B01234, S00394)
+        if(/^[A-Z]\d{5,}/.test(pt2))break;
+        // 3. Hikoki 序號：2-4字母+2位數字+字母+4位數字 (AE01L1036, AF03F8006)
+        if(/^[A-Z]{2,4}\d{2}[A-Z]\d{4}/.test(pt2))break;
+        // 4. Milwaukee L74AB型電池序號
+        if(/^L\d{2}[A-Z]{2}/.test(pt2)&&pt2.length>=7)break;
+        // 5. 長混合字串（>=10字且含5位以上數字）→ 序號
+        if(pt2.length>=10&&/\d{5,}/.test(pt2))break;
+        // 6. 年份結尾 (B2025, C2024, K2024)
+        if(/^[A-Z]\d{4}$/.test(pt2))break;
+        rr2.push(pt2);
       }
-      pname=(rr.length?rr.join(' '):tmp.slice(0,15)).toUpperCase();
+      pname=rr2.length?rr2.join(' '):tu.slice(0,12);
       serial='';
       note=colE;
     }
