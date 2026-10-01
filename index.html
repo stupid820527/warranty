@@ -283,8 +283,8 @@ function parseCSV(text){
         if(/^\d{6,}$/.test(pt2))break;
         // 2. Milwaukee 序號：1字母+5位以上數字 (A00049, B01234, S00394)
         if(/^[A-Z]\d{5,}/.test(pt2))break;
-        // 3. Hikoki 序號：2-4字母+2位數字+字母+4位數字 (AE01L1036, AF03F8006)
-        if(/^[A-Z]{2,4}\d{2}[A-Z]\d{4}/.test(pt2))break;
+        // 3. Hikoki 序號：2字母+2位數字+1-2字母+3-4位數字 (AE01L1036, AF03F8006, AE01LR016)
+        if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt2))break;
         // 4. Milwaukee L74AB型電池序號
         if(/^L\d{2}[A-Z]{2}/.test(pt2)&&pt2.length>=7)break;
         // 5. 長混合字串（>=10字且含5位以上數字）→ 序號
