@@ -121,9 +121,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
   </div>
   <div class="card">
     <div class="search-row">
-      <input type="search" id="searchInput" placeholder="客戶名稱、電話、產品序號..." autocomplete="off">
+      <input type="search" id="searchInput" placeholder="客戶名稱、電話、產品型號..." autocomplete="off">
       <button class="btn-red" onclick="doSearch()">查詢</button>
       <button class="btn-gray" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="search-row" style="margin-bottom:10px">
+      <input type="month" id="monthFilter" style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:9px;font-size:15px;outline:none;background:#fff">
+      <button class="btn-red" onclick="doMonthFilter()">月份查詢</button>
+      <button class="btn-gray" onclick="clearMonthFilter()">✕</button>
     </div>
     <div class="filters">
       <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
@@ -418,20 +423,40 @@ function renderResults(){
 
 function renderPagination(total){
   var pages=Math.ceil(total/PAGE_SIZE);
-  if(pages<=1){document.getElementById('pagination').innerHTML='';return}
-  var p=currentPage,html='';
-  if(p>1)html+='<button class="pg-btn" onclick="goPage('+(p-1)+')">‹</button>';
+  var pg=document.getElementById('pagination');
+  if(pages<=1){pg.innerHTML='';return}
+  var p=currentPage;
+  // 前後各2頁按鈕 + 跳頁輸入框
+  var html='';
+  if(p>1)html+='<button class="pg-btn" onclick="goPage(1)">«</button><button class="pg-btn" onclick="goPage('+(p-1)+')">‹</button>';
   var s=Math.max(1,p-2),e=Math.min(pages,p+2);
-  if(s>1)html+='<button class="pg-btn" onclick="goPage(1)">1</button>'+(s>2?'<span>…</span>':'');
+  if(s>1)html+='<span style="padding:0 4px;color:#aaa">…</span>';
   for(var i=s;i<=e;i++)html+='<button class="pg-btn'+(i===p?' active':'')+'" onclick="goPage('+i+')">'+i+'</button>';
-  if(e<pages)html+=(e<pages-1?'<span>…</span>':'')+'<button class="pg-btn" onclick="goPage('+pages+')">'+pages+'</button>';
-  if(p<pages)html+='<button class="pg-btn" onclick="goPage('+(p+1)+')">›</button>';
-  document.getElementById('pagination').innerHTML=html;
+  if(e<pages)html+='<span style="padding:0 4px;color:#aaa">…</span>';
+  if(p<pages)html+='<button class="pg-btn" onclick="goPage('+(p+1)+')">›</button><button class="pg-btn" onclick="goPage('+pages+')">»</button>';
+  // 跳頁輸入框
+  html+='<span style="display:flex;align-items:center;gap:4px;margin-left:6px">'
+    +'<span style="font-size:13px;color:#888">第</span>'
+    +'<input id="pgJump" type="number" min="1" max="'+pages+'" value="'+p+'" style="width:52px;padding:6px 6px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;text-align:center;outline:none" onkeydown="if(event.key===\'Enter\')jumpPage('+pages+')">'
+    +'<span style="font-size:13px;color:#888">/ '+pages+' 頁</span>'
+    +'<button class="pg-btn" onclick="jumpPage('+pages+')" style="padding:8px 10px">→</button>'
+    +'</span>';
+  pg.innerHTML=html;
 }
 
 function goPage(n){currentPage=n;renderResults();window.scrollTo(0,0)}
+function jumpPage(max){var v=parseInt(document.getElementById('pgJump').value,10);if(v>=1&&v<=max)goPage(v)}
 function doSearch(){searchTerm=document.getElementById('searchInput').value.trim();applyFilters()}
 function clearSearch(){document.getElementById('searchInput').value='';searchTerm='';applyFilters()}
+function doMonthFilter(){
+  var v=document.getElementById('monthFilter').value;
+  if(!v){searchTerm=document.getElementById('searchInput').value.trim();applyFilters();return;}
+  var y=+v.slice(0,4),m=+v.slice(5,7);
+  filtered=allData.filter(function(r){return r.dt&&r.dt.getFullYear()===y&&(r.dt.getMonth()+1)===m});
+  if(currentFilter!=='all')filtered=filtered.filter(function(r){return wStatus(r.pd).status===currentFilter});
+  currentPage=1;renderSummaryBar();renderCustomerSummary();renderResults();
+}
+function clearMonthFilter(){document.getElementById('monthFilter').value='';doSearch()}
 function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');applyFilters()}
 document.getElementById('searchInput').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
 function doAnalyticsSearch(){analyticsSearchTerm=document.getElementById('aSearchInput').value.trim().toUpperCase().replace(/\s+/g,'');renderChart()}
