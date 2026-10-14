@@ -252,51 +252,18 @@ function parseCSV(text){
     }
     cols.push(cur.trim());
 
-    // 格式：A=購買人, B=聯絡電話, C=購買日期, D=購買機型(可能含序號), E=機身序號, F=經銷商
-    // 舊資料D欄機型與序號合併(用|分隔)，新資料E欄獨立
+    // 格式：A=購買人, B=聯絡電話, C=購買日期, D=購買機型, E=機身序號, F=經銷商
+    // 直接讀欄位，不做文字解析
     var dt=parseD(cols[2]||'');
     if(!dt)continue;
-    var rawPd=cols[2]||'';
     var pdStr=toPdStr(dt);
 
     var name=String(cols[0]||'').trim();
     var phone=String(cols[1]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-    var colD=String(cols[3]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+    var product=String(cols[3]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
     var serial=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
     var note=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-
-    // 從D欄萃取產品名稱與序號
-    // 情況1: 有 | 分隔，例如 "M18B5 | G29NDCBC 230513 9526247"
-    // 情況2: 無 | 但序號直接跟在後面，例如 "M12 FID2 AF03F2001A 01733 A2024"
-    var rawModel=colD,serialFromD='';
-    if(colD.indexOf('|')>=0){
-      var parts=colD.split('|');
-      rawModel=parts[0].trim();
-      serialFromD=parts.slice(1).join('|').trim();
-    }
-    var tu=rawModel.toUpperCase().replace(/\s{2,}/g,' ');
-    var pp=tu.split(/\s+/),rr=[],sn=[];
-    var hitSerial=false;
-    for(var pi=0;pi<pp.length;pi++){
-      var pt=pp[pi];
-      if(!hitSerial){
-        if(/^\d{6,}$/.test(pt)){hitSerial=true;sn.push(pt);continue;}
-        if(/^[A-Z]\d{5,}/.test(pt)){hitSerial=true;sn.push(pt);continue;}
-        if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt)){hitSerial=true;sn.push(pt);continue;}
-        if(/^L\d{2}[A-Z]{2}/.test(pt)&&pt.length>=7){hitSerial=true;sn.push(pt);continue;}
-        if(pt.length>=10&&/\d{5,}/.test(pt)){hitSerial=true;sn.push(pt);continue;}
-        if(/^[A-Z]\d{4}$/.test(pt)){hitSerial=true;sn.push(pt);continue;}
-        rr.push(pt);
-      } else {
-        sn.push(pt);
-      }
-    }
-    var pname=rr.length?rr.join(' '):tu.slice(0,12);
-    var product=pname;
-    // 序號優先順序：E欄 > D欄|後 > D欄空格後萃取
-    if(!serial){
-      serial=serialFromD||(sn.length?sn.join(' '):'');
-    }
+    var pname=product.toUpperCase()||'未知';
     var fmt='new';
 
     rows.push({
