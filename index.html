@@ -252,82 +252,37 @@ function parseCSV(text){
     }
     cols.push(cur.trim());
 
-    // 自動偵測格式（三種）：
-    // 舊格式A(A欄有日期)：cols[0]=日期, cols[1]=客戶, cols[2]=電話, cols[3]=產品+序號合併, cols[4]=機身序號, cols[5]=備註
-    // 舊格式B(A欄空白,B欄有日期)：cols[0]=空白, cols[1]=日期, cols[2]=客戶, cols[3]=電話, cols[4]=產品+序號合併, cols[5]=空白, cols[6]=備註
-    // 官方格式：cols[0]=序號(數字), cols[1]=購買人, cols[2]=聯絡電話, cols[3]=購買日期, cols[4]=購買機型, cols[5]=機身序號, cols[6]=經銷商
-    var dt=null,rawPd='',fmt='';
-    if(parseD(cols[0]||'')){
-      // 舊格式A：A欄直接是日期
-      fmt='oldA';rawPd=cols[0]||'';dt=parseD(rawPd);
-    } else if(parseD(cols[1]||'')){
-      // 舊格式B：A欄空白，B欄是日期（舊資料貼到新標題後偏移一格）
-      fmt='oldB';rawPd=cols[1]||'';dt=parseD(rawPd);
-    } else if(parseD(cols[3]||'')){
-      // 官方格式：D欄是日期
-      fmt='new';rawPd=cols[3]||'';dt=parseD(rawPd);
-    }
+    // 格式：A=購買人, B=聯絡電話, C=購買日期, D=購買機型(可能含序號), E=機身序號, F=經銷商
+    // 舊資料D欄機型與序號合併(用|分隔)，新資料E欄獨立
+    var dt=parseD(cols[2]||'');
     if(!dt)continue;
+    var rawPd=cols[2]||'';
     var pdStr=toPdStr(dt);
 
-    var name,phone,product,serial,note,pname;
+    var name=String(cols[0]||'').trim();
+    var phone=String(cols[1]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+    var colD=String(cols[3]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+    var serial=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+    var note=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
 
-    if(fmt==='oldA'){
-      // 舊格式A：原始6欄格式
-      name=String(cols[1]||'').trim();
-      phone=String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      var colD=String(cols[3]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      serial=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      note=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      var tmp2=colD.replace(/^\|+\s*/,'').trim();
-      if(tmp2.indexOf('|')>=0)tmp2=tmp2.split('|')[0].trim();
-      var tu=tmp2.toUpperCase().replace(/\s{2,}/g,' ');
-      var pp2=tu.split(/\s+/),rr2=[];
-      for(var pi=0;pi<pp2.length;pi++){
-        var pt2=pp2[pi];
-        if(/^\d{6,}$/.test(pt2))break;
-        if(/^[A-Z]\d{5,}/.test(pt2))break;
-        if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt2))break;
-        if(/^L\d{2}[A-Z]{2}/.test(pt2)&&pt2.length>=7)break;
-        if(pt2.length>=10&&/\d{5,}/.test(pt2))break;
-        if(/^[A-Z]\d{4}$/.test(pt2))break;
-        rr2.push(pt2);
-      }
-      pname=rr2.length?rr2.join(' '):tu.slice(0,12);
-      product=pname;
-    } else if(fmt==='oldB'){
-      // 舊格式B：A欄是空白序號欄，資料從B欄開始（舊資料+新標題）
-      name=String(cols[2]||'').trim();
-      phone=String(cols[3]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      var colD=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      serial='';
-      note=String(cols[6]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      var tmp2=colD.replace(/^\|+\s*/,'').trim();
-      if(tmp2.indexOf('|')>=0)tmp2=tmp2.split('|')[0].trim();
-      var tu=tmp2.toUpperCase().replace(/\s{2,}/g,' ');
-      var pp2=tu.split(/\s+/),rr2=[];
-      for(var pi=0;pi<pp2.length;pi++){
-        var pt2=pp2[pi];
-        if(/^\d{6,}$/.test(pt2))break;
-        if(/^[A-Z]\d{5,}/.test(pt2))break;
-        if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt2))break;
-        if(/^L\d{2}[A-Z]{2}/.test(pt2)&&pt2.length>=7)break;
-        if(pt2.length>=10&&/\d{5,}/.test(pt2))break;
-        if(/^[A-Z]\d{4}$/.test(pt2))break;
-        rr2.push(pt2);
-      }
-      pname=rr2.length?rr2.join(' '):tu.slice(0,12);
-      product=pname;
-    } else {
-      // 官方格式：cols[0]=序號, cols[1]=購買人, cols[2]=聯絡電話, cols[3]=購買日期, cols[4]=購買機型, cols[5]=機身序號, cols[6]=經銷商
-      name=String(cols[1]||'').trim();
-      phone=String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      var colModel=String(cols[4]||'').trim();
-      serial=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      note=String(cols[6]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-      pname=colModel.toUpperCase().replace(/\s{2,}/g,' ').trim();
-      product=colModel;
+    // 從D欄萃取產品名稱（去掉序號部分）
+    var tmp=colD.replace(/^\|+\s*/,'').trim();
+    if(tmp.indexOf('|')>=0)tmp=tmp.split('|')[0].trim();
+    var tu=tmp.toUpperCase().replace(/\s{2,}/g,' ');
+    var pp=tu.split(/\s+/),rr=[];
+    for(var pi=0;pi<pp.length;pi++){
+      var pt=pp[pi];
+      if(/^\d{6,}$/.test(pt))break;
+      if(/^[A-Z]\d{5,}/.test(pt))break;
+      if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt))break;
+      if(/^L\d{2}[A-Z]{2}/.test(pt)&&pt.length>=7)break;
+      if(pt.length>=10&&/\d{5,}/.test(pt))break;
+      if(/^[A-Z]\d{4}$/.test(pt))break;
+      rr.push(pt);
     }
+    var pname=rr.length?rr.join(' '):tu.slice(0,12);
+    var product=pname;
+    var fmt='new';
 
     rows.push({
       pd:pdStr,dt:dt,
@@ -468,11 +423,12 @@ function renderResults(){
       +'<div class="ri-field">🔒 到期 <b>'+(ws.exp?fmtD(ws.exp):'-')+'</b></div>'
       +(r.phone?'<div class="ri-field">📞 <b>'+r.phone+'</b></div>':'')
       +'<div class="ri-field">📋 保固 <b>'+months+'個月</b></div>'
-      +(r.fmt==='new'&&r.note?'<div class="ri-field">🏪 <b>'+r.note+'</b></div>':'')
-      +(r.fmt!=='new'&&parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>':'')
+      +(r.note&&parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>'
+        :(r.note&&isNaN(parseFloat(r.note))?'<div class="ri-field">🏪 <b>'+r.note+'</b></div>':''))
       +'</div>'
       +'<div class="ri-product">'+r.product+'</div>'
-      +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>':'')
+      +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>'
+        :(r.product&&r.product.indexOf('|')>=0?'<div class="ri-serial">🔢 '+r.product.split('|').slice(1).join('|').trim()+'</div>':''))
       +'</div>';
   }
   list.innerHTML=html;
