@@ -319,7 +319,7 @@ function parseCSV(text){
       pname=rr2.length?rr2.join(' '):tu.slice(0,12);
       product=pname;
     } else {
-      // 官方格式：各欄位獨立
+      // 官方格式：cols[0]=序號, cols[1]=購買人, cols[2]=聯絡電話, cols[3]=購買日期, cols[4]=購買機型, cols[5]=機身序號, cols[6]=經銷商
       name=String(cols[1]||'').trim();
       phone=String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
       var colModel=String(cols[4]||'').trim();
@@ -337,7 +337,7 @@ function parseCSV(text){
       serial:serial,
       note:note,
       pname:pname||'未知',
-      isNew:!isOld
+      fmt:fmt
     });
   }
   return rows;
@@ -468,10 +468,11 @@ function renderResults(){
       +'<div class="ri-field">🔒 到期 <b>'+(ws.exp?fmtD(ws.exp):'-')+'</b></div>'
       +(r.phone?'<div class="ri-field">📞 <b>'+r.phone+'</b></div>':'')
       +'<div class="ri-field">📋 保固 <b>'+months+'個月</b></div>'
-      +(parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>':'')
+      +(r.fmt==='new'&&r.note?'<div class="ri-field">🏪 <b>'+r.note+'</b></div>':'')
+      +(r.fmt!=='new'&&parseAmt(r.note)>0?'<div class="ri-field">💰 <b>NT$'+parseAmt(r.note).toLocaleString()+'</b></div>':'')
       +'</div>'
       +'<div class="ri-product">'+r.product+'</div>'
-      +(r.isNew&&r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>':'')
+      +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>':'')
       +'</div>';
   }
   list.innerHTML=html;
