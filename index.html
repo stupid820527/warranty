@@ -282,6 +282,10 @@ function parseCSV(text){
     }
     var pname=rr.length?rr.join(' '):tu.slice(0,12);
     var product=pname;
+    // 如果E欄沒有序號，嘗試從D欄 | 後面取
+    if(!serial&&colD.indexOf('|')>=0){
+      serial=colD.split('|').slice(1).join('|').trim();
+    }
     var fmt='new';
 
     rows.push({
@@ -427,8 +431,7 @@ function renderResults(){
         :(r.note&&isNaN(parseFloat(r.note))?'<div class="ri-field">🏪 <b>'+r.note+'</b></div>':''))
       +'</div>'
       +'<div class="ri-product">'+r.product+'</div>'
-      +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>'
-        :(r.product&&r.product.indexOf('|')>=0?'<div class="ri-serial">🔢 '+r.product.split('|').slice(1).join('|').trim()+'</div>':''))
+      +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>':'')
       +'</div>';
   }
   list.innerHTML=html;
