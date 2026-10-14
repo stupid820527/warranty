@@ -252,62 +252,61 @@ function parseCSV(text){
     }
     cols.push(cur.trim());
 
-    var rawPd=cols[0]||'';
+    // 自動偵測格式：
+    // 舊格式(6欄)：cols[0]=購買日期, cols[1]=客戶名稱, cols[2]=電話, cols[3]=產品名稱序號, cols[4]=機身序號, cols[5]=備註
+    // 官方格式(7欄)：cols[0]=序號, cols[1]=購買人, cols[2]=聯絡電話, cols[3]=購買日期, cols[4]=購買機型, cols[5]=機身序號, cols[6]=經銷商
+    var isOld=!!parseD(cols[0]||'');
+    var rawPd=isOld?(cols[0]||''):(cols[3]||'');
     var dt=parseD(rawPd);
     if(!dt)continue;
     var pdStr=toPdStr(dt);
 
-    var colD=String(cols[3]||'').trim();
-    var colE=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
-    var colF=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+    var name,phone,product,serial,note,pname;
 
-    var isNewFormat=parseInt(pdStr,10)>=20260901;
-
-    var pname,serial,product,note;
-    if(isNewFormat){
-      // 新格式：D=產品名稱, E=機身序號, F=備註
-      pname=colD.toUpperCase();
-      serial=colE;
-      product=colD;
-      note=colF;
-    } else {
-      // 舊格式：D=產品名稱+序號合併, E=備註
-      product=colD;
-      // 智慧型產品名稱提取（不依賴型號清單）
+    if(isOld){
+      // 舊格式：產品名稱與序號合併在 cols[3]，需要用正規表達式拆開
+      name=String(cols[1]||'').trim();
+      phone=String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      var colD=String(cols[3]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      serial=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      note=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      // 從合併欄位提取純產品名稱（去掉序號部分）
       var tmp2=colD.replace(/^\|+\s*/,'').trim();
       if(tmp2.indexOf('|')>=0)tmp2=tmp2.split('|')[0].trim();
       var tu=tmp2.toUpperCase().replace(/\s{2,}/g,' ');
       var pp2=tu.split(/\s+/),rr2=[];
       for(var pi=0;pi<pp2.length;pi++){
         var pt2=pp2[pi];
-        // 1. 純數字6位以上（日期/序號）→ 停止
         if(/^\d{6,}$/.test(pt2))break;
-        // 2. Milwaukee 序號：1字母+5位以上數字 (A00049, B01234, S00394)
         if(/^[A-Z]\d{5,}/.test(pt2))break;
-        // 3. Hikoki 序號：2字母+2位數字+1-2字母+3-4位數字 (AE01L1036, AF03F8006, AE01LR016)
         if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt2))break;
-        // 4. Milwaukee L74AB型電池序號
         if(/^L\d{2}[A-Z]{2}/.test(pt2)&&pt2.length>=7)break;
-        // 5. 長混合字串（>=10字且含5位以上數字）→ 序號
         if(pt2.length>=10&&/\d{5,}/.test(pt2))break;
-        // 6. 年份結尾 (B2025, C2024, K2024)
         if(/^[A-Z]\d{4}$/.test(pt2))break;
         rr2.push(pt2);
       }
       pname=rr2.length?rr2.join(' '):tu.slice(0,12);
-      serial='';
-      note=colE;
+      product=pname;
+    } else {
+      // 官方格式：各欄位獨立
+      name=String(cols[1]||'').trim();
+      phone=String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      var colModel=String(cols[4]||'').trim();
+      serial=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      note=String(cols[6]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
+      pname=colModel.toUpperCase().replace(/\s{2,}/g,' ').trim();
+      product=colModel;
     }
 
     rows.push({
       pd:pdStr,dt:dt,
-      name:String(cols[1]||'').trim(),
-      phone:String(cols[2]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim(),
+      name:name,
+      phone:phone,
       product:product,
       serial:serial,
       note:note,
       pname:pname||'未知',
-      isNew:isNewFormat
+      isNew:!isOld
     });
   }
   return rows;
