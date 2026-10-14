@@ -265,26 +265,37 @@ function parseCSV(text){
     var serial=String(cols[4]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
     var note=String(cols[5]||'').replace(/\.0$/,'').replace(/^nan$/i,'').trim();
 
-    // 從D欄萃取產品名稱（去掉序號部分）
-    var tmp=colD.replace(/^\|+\s*/,'').trim();
-    if(tmp.indexOf('|')>=0)tmp=tmp.split('|')[0].trim();
-    var tu=tmp.toUpperCase().replace(/\s{2,}/g,' ');
-    var pp=tu.split(/\s+/),rr=[];
+    // 從D欄萃取產品名稱與序號
+    // 情況1: 有 | 分隔，例如 "M18B5 | G29NDCBC 230513 9526247"
+    // 情況2: 無 | 但序號直接跟在後面，例如 "M12 FID2 AF03F2001A 01733 A2024"
+    var rawModel=colD,serialFromD='';
+    if(colD.indexOf('|')>=0){
+      var parts=colD.split('|');
+      rawModel=parts[0].trim();
+      serialFromD=parts.slice(1).join('|').trim();
+    }
+    var tu=rawModel.toUpperCase().replace(/\s{2,}/g,' ');
+    var pp=tu.split(/\s+/),rr=[],sn=[];
+    var hitSerial=false;
     for(var pi=0;pi<pp.length;pi++){
       var pt=pp[pi];
-      if(/^\d{6,}$/.test(pt))break;
-      if(/^[A-Z]\d{5,}/.test(pt))break;
-      if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt))break;
-      if(/^L\d{2}[A-Z]{2}/.test(pt)&&pt.length>=7)break;
-      if(pt.length>=10&&/\d{5,}/.test(pt))break;
-      if(/^[A-Z]\d{4}$/.test(pt))break;
-      rr.push(pt);
+      if(!hitSerial){
+        if(/^\d{6,}$/.test(pt)){hitSerial=true;sn.push(pt);continue;}
+        if(/^[A-Z]\d{5,}/.test(pt)){hitSerial=true;sn.push(pt);continue;}
+        if(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{3,4}/.test(pt)){hitSerial=true;sn.push(pt);continue;}
+        if(/^L\d{2}[A-Z]{2}/.test(pt)&&pt.length>=7){hitSerial=true;sn.push(pt);continue;}
+        if(pt.length>=10&&/\d{5,}/.test(pt)){hitSerial=true;sn.push(pt);continue;}
+        if(/^[A-Z]\d{4}$/.test(pt)){hitSerial=true;sn.push(pt);continue;}
+        rr.push(pt);
+      } else {
+        sn.push(pt);
+      }
     }
     var pname=rr.length?rr.join(' '):tu.slice(0,12);
     var product=pname;
-    // 如果E欄沒有序號，嘗試從D欄 | 後面取
-    if(!serial&&colD.indexOf('|')>=0){
-      serial=colD.split('|').slice(1).join('|').trim();
+    // 序號優先順序：E欄 > D欄|後 > D欄空格後萃取
+    if(!serial){
+      serial=serialFromD||(sn.length?sn.join(' '):'');
     }
     var fmt='new';
 
