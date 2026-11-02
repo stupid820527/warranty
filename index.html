@@ -455,7 +455,7 @@ function renderResults(){
       +'</div>'
       +'<div class="ri-product">'+r.product+'</div>'
       +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>':'')
-      +(APPS_SCRIPT_URL?'<button class="edit-btn" onclick="openEdit('+r.row+','+JSON.stringify(r).replace(/</g,'\\u003c')+')">✏️ 編輯此筆資料</button>':'')
+      +(APPS_SCRIPT_URL?'<button class="edit-btn" data-row="'+r.row+'" data-idx="'+(((currentPage-1)*PAGE_SIZE)+i)+'" onclick="openEditByIdx(this)">✏️ 編輯此筆資料</button>':'')
       +'</div>';
   }
   list.innerHTML=html;
@@ -627,6 +627,13 @@ function getRangeData(){
 }
 
 // ── 編輯功能 ────────────────────────────────────────
+function openEditByIdx(btn){
+  var idx=parseInt(btn.getAttribute('data-idx'),10);
+  var row=parseInt(btn.getAttribute('data-row'),10);
+  var r=filtered[idx];
+  if(!r)return;
+  openEdit(row,r);
+}
 function openEdit(row, r){
   document.getElementById('editRow').value=row;
   document.getElementById('editName').value=r.name||'';
