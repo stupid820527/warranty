@@ -99,6 +99,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
 .status-dot.loading{background:#f0a500;animation:pulse 1s infinite}
 .status-dot.error{background:#c41e1e}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* 編輯按鈕 */
+.edit-btn{margin-top:10px;padding:7px 14px;background:#f5f5f5;border:1.5px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;color:#555;width:100%}
+.edit-btn:hover{background:#eee}
+/* 編輯彈窗 */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:14px;padding:20px;width:92%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;color:#222}
+.modal-field{margin-bottom:12px}
+.modal-field label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-weight:500}
+.modal-field input{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;-webkit-appearance:none}
+.modal-field input:focus{border-color:#c41e1e}
+.modal-actions{display:flex;gap:8px;margin-top:16px}
+.modal-save{flex:1;padding:12px;background:#c41e1e;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer}
+.modal-cancel{padding:12px 18px;background:#efefef;color:#555;border:none;border-radius:9px;font-size:15px;cursor:pointer}
+.modal-saving{opacity:.6;pointer-events:none}
 </style>
 </head>
 <body>
@@ -198,8 +214,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
   </div>
 </div>
 </div>
+
+<!-- 編輯彈窗 -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">✏️ 編輯保固資料</div>
+    <input type="hidden" id="editRow">
+    <div class="modal-field"><label>購買人</label><input type="text" id="editName" placeholder="購買人姓名"></div>
+    <div class="modal-field"><label>聯絡電話</label><input type="text" id="editPhone" placeholder="電話號碼"></div>
+    <div class="modal-field"><label>購買日期（格式：20240101）</label><input type="text" id="editDate" placeholder="例如 20240101"></div>
+    <div class="modal-field"><label>購買機型</label><input type="text" id="editProduct" placeholder="產品型號"></div>
+    <div class="modal-field"><label>機身序號</label><input type="text" id="editSerial" placeholder="序號（選填）"></div>
+    <div class="modal-field"><label>經銷商 / 金額</label><input type="text" id="editNote" placeholder="經銷商名稱或金額（選填）"></div>
+    <div id="editError" style="color:#c41e1e;font-size:13px;margin-top:8px;display:none"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeEdit()">取消</button>
+      <button class="modal-save" id="editSaveBtn" onclick="saveEdit()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 var CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSsFfDA2dL8LCxZZl4I1YgLEuGwlSU42y-uRqKkbdNVJraaOfKQoCEmFHa6G94grTE-u0SmWb-z08Ez/pub?gid=0&single=true&output=csv';
+// ★ 部署 Apps Script 後，把網址貼在這裡（doGet URL）
+var APPS_SCRIPT_URL='';
 var PAGE_SIZE=25;
 var allData=[],filtered=[],currentPage=1,currentFilter='all',searchTerm='';
 var chartMode='top20',analyticsSearchTerm='';
@@ -248,6 +286,7 @@ function parseCSV(text){
   var rows=[];
   for(var i=1;i<lines.length;i++){
     var line=lines[i].trim();if(!line)continue;
+    var sheetRow=i+1; // Sheets 第1列=標題，第2列開始=資料，對應 i=1
     var cols=[],cur='',inQ=false;
     for(var j=0;j<line.length;j++){
       var c=line[j];
@@ -273,6 +312,7 @@ function parseCSV(text){
 
     rows.push({
       pd:pdStr,dt:dt,
+      row:sheetRow,
       name:name,
       phone:phone,
       product:product,
@@ -415,6 +455,7 @@ function renderResults(){
       +'</div>'
       +'<div class="ri-product">'+r.product+'</div>'
       +(r.serial?'<div class="ri-serial">🔢 機身序號 '+r.serial+'</div>':'')
+      +(APPS_SCRIPT_URL?'<button class="edit-btn" onclick="openEdit('+r.row+','+JSON.stringify(r).replace(/</g,'\\u003c')+')">✏️ 編輯此筆資料</button>':'')
       +'</div>';
   }
   list.innerHTML=html;
@@ -584,6 +625,72 @@ function getRangeData(){
     return r.dt&&r.dt>=rangeStart&&r.dt<=rangeEnd;
   });
 }
+
+// ── 編輯功能 ────────────────────────────────────────
+function openEdit(row, r){
+  document.getElementById('editRow').value=row;
+  document.getElementById('editName').value=r.name||'';
+  document.getElementById('editPhone').value=r.phone||'';
+  document.getElementById('editDate').value=r.pd||'';
+  document.getElementById('editProduct').value=r.product||'';
+  document.getElementById('editSerial').value=r.serial||'';
+  document.getElementById('editNote').value=r.note||'';
+  document.getElementById('editError').style.display='none';
+  document.getElementById('editSaveBtn').classList.remove('modal-saving');
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEdit(){
+  document.getElementById('editModal').classList.remove('open');
+}
+
+function saveEdit(){
+  if(!APPS_SCRIPT_URL){alert('尚未設定 Apps Script 網址');return}
+  var row=document.getElementById('editRow').value;
+  var btn=document.getElementById('editSaveBtn');
+  var errEl=document.getElementById('editError');
+  btn.classList.add('modal-saving');
+  btn.textContent='儲存中...';
+  errEl.style.display='none';
+
+  var params=new URLSearchParams({
+    key:'wenchang2024',
+    action:'update',
+    row:row,
+    name:document.getElementById('editName').value,
+    phone:document.getElementById('editPhone').value,
+    date:document.getElementById('editDate').value,
+    product:document.getElementById('editProduct').value,
+    serial:document.getElementById('editSerial').value,
+    note:document.getElementById('editNote').value
+  });
+
+  fetch(APPS_SCRIPT_URL+'?'+params.toString())
+    .then(function(res){return res.json()})
+    .then(function(data){
+      btn.classList.remove('modal-saving');
+      btn.textContent='💾 儲存';
+      if(data.success){
+        closeEdit();
+        // 重新載入資料
+        loadData();
+      } else {
+        errEl.textContent='儲存失敗：'+(data.error||'未知錯誤');
+        errEl.style.display='block';
+      }
+    })
+    .catch(function(){
+      btn.classList.remove('modal-saving');
+      btn.textContent='💾 儲存';
+      errEl.textContent='網路錯誤，請重試';
+      errEl.style.display='block';
+    });
+}
+
+// 點彈窗外部關閉
+document.getElementById('editModal').addEventListener('click',function(e){
+  if(e.target===this)closeEdit();
+});
 
 loadData();
 </script>
