@@ -672,6 +672,15 @@ function saveEdit(){
     note:document.getElementById('editNote').value
   });
 
+  var updatedR={
+    name: document.getElementById('editName').value,
+    phone: document.getElementById('editPhone').value,
+    pd: document.getElementById('editDate').value,
+    product: document.getElementById('editProduct').value,
+    serial: document.getElementById('editSerial').value,
+    note: document.getElementById('editNote').value
+  };
+
   fetch(APPS_SCRIPT_URL+'?'+params.toString())
     .then(function(res){return res.json()})
     .then(function(data){
@@ -679,8 +688,22 @@ function saveEdit(){
       btn.textContent='💾 儲存';
       if(data.success){
         closeEdit();
-        // 重新載入資料
-        loadData();
+        // 直接更新畫面上的資料，不等 CSV 快取
+        var rowNum=parseInt(row,10);
+        for(var i=0;i<allData.length;i++){
+          if(allData[i].row===rowNum){
+            allData[i].name=updatedR.name;
+            allData[i].phone=updatedR.phone;
+            allData[i].pd=updatedR.pd;
+            allData[i].dt=parseD(updatedR.pd);
+            allData[i].product=updatedR.product;
+            allData[i].pname=updatedR.product.toUpperCase()||'未知';
+            allData[i].serial=updatedR.serial;
+            allData[i].note=updatedR.note;
+            break;
+          }
+        }
+        applyFilters();
       } else {
         errEl.textContent='儲存失敗：'+(data.error||'未知錯誤');
         errEl.style.display='block';
