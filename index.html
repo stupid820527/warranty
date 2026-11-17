@@ -162,6 +162,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft Jheng
     </div>
   </div>
   <div id="customerSummary"></div>
+  <div id="exportRow" style="display:none;margin-bottom:8px">
+    <button onclick="exportExcel()" style="width:100%;padding:11px;background:#1a7a3c;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer">📥 匯出 Excel（目前查詢結果）</button>
+  </div>
   <div id="resultsList"><div class="loading"><div class="loading-spinner"></div>載入中...</div></div>
   <div class="pagination" id="pagination"></div>
 </div>
@@ -369,6 +372,7 @@ function applyFilters(){
   }
   if(currentFilter!=='all')base=base.filter(function(r){return wStatus(r.pd).status===currentFilter});
   filtered=base;currentPage=1;
+  document.getElementById('exportRow').style.display=filtered.length?'block':'none';
   renderSummaryBar();renderCustomerSummary();renderResults();
 }
 
@@ -721,6 +725,42 @@ function saveEdit(){
 document.getElementById('editModal').addEventListener('click',function(e){
   if(e.target===this)closeEdit();
 });
+
+function exportExcel(){
+  if(!filtered.length)return;
+  var rows=[['購買人','聯絡電話','購買日期','購買機型','機身序號','經銷商/金額','保固狀態','到期日']];
+  for(var i=0;i<filtered.length;i++){
+    var r=filtered[i],ws=wStatus(r.pd);
+    rows.push([
+      r.name||'',
+      r.phone||'',
+      r.pd||'',
+      r.product||'',
+      r.serial||'',
+      r.note||'',
+      ws.status==='valid'?'保固中':'已過期',
+      ws.exp?fmtD(ws.exp):''
+    ]);
+  }
+  // 轉成 CSV（UTF-8 BOM 讓 Excel 正確顯示中文）
+  var csv='﻿';
+  for(var ri=0;ri<rows.length;ri++){
+    csv+=rows[ri].map(function(c){
+      var s=String(c);
+      if(s.indexOf(',')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0)
+        s='"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }).join(',')+'\r\n';
+  }
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  var name=searchTerm?searchTerm:'查詢結果';
+  a.download='保固_'+name+'_'+filtered.length+'筆.csv';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
 
 loadData();
 </script>
